@@ -7,9 +7,9 @@ services:
     ports:
       - "${FRONTEND_EXTERNAL_PORT}:${FRONTEND_INTERNAL_PORT}"
     volumes:
-      - ./front/templates:/usr/share/nginx/html
-      - ./front/static:/usr/share/nginx/html/static
-      - ./front/nginx.conf:/etc/nginx/conf.d/default.conf
+      - ../front/templates:/usr/share/nginx/html
+      - ../front/static:/usr/share/nginx/html/static
+      - ../front/nginx.conf:/etc/nginx/conf.d/default.conf
     env_file:
       - ../.env
     networks:
@@ -18,7 +18,7 @@ services:
   gateway-service:
     container_name: gateway-service
     build:
-      context: ./gateway-service
+      context: ../gateway-service
     ports:
       - "${GATEWAY_SERVICE_PORT}:${GATEWAY_SERVICE_PORT}"
     env_file:
@@ -32,7 +32,7 @@ services:
   qr-service:
     container_name: qr-service
     build:
-      context: ./qr-service
+      context: ../qr-service
     ports:
       - "${QR_SERVICE_PORT}:${QR_SERVICE_PORT}"
     env_file:
