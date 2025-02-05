@@ -1,0 +1,101 @@
+version: '3.8'
+
+services:
+  frontend:
+    image: nginx:alpine
+    container_name: frontend
+    ports:
+      - "${FRONTEND_EXTERNAL_PORT}:${FRONTEND_INTERNAL_PORT}"
+    volumes:
+      - ./front/templates:/usr/share/nginx/html
+      - ./front/static:/usr/share/nginx/html/static
+      - ./front/nginx.conf:/etc/nginx/conf.d/default.conf
+    env_file:
+      - ../.env
+    networks:
+      - qr_net
+
+  gateway-service:
+    container_name: gateway-service
+    build:
+      context: ./gateway-service
+    ports:
+      - "${GATEWAY_SERVICE_PORT}:${GATEWAY_SERVICE_PORT}"
+    env_file:
+      - ../.env
+    restart: always
+    depends_on:
+      - graphite
+    networks:
+      - qr_net
+
+  qr-service:
+    container_name: qr-service
+    build:
+      context: ./qr-service
+    ports:
+      - "${QR_SERVICE_PORT}:${QR_SERVICE_PORT}"
+    env_file:
+      - ../.env
+    depends_on:
+      - qr-service-db
+      - graphite
+    restart: always
+    networks:
+      - qr_net
+
+  qr-service-db:
+    image: postgres:latest
+    container_name: qr-service-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${QR_SERVICE_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${QR_SERVICE_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${QR_SERVICE_POSTGRES_DB}
+    env_file:
+      - ../.env
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5435:${QR_SERVICE_POSTGRES_PORT}"
+    networks:
+      - qr_net
+
+  graphite:
+    image: graphiteapp/graphite-statsd
+    container_name: graphite
+    ports:
+      - "${CARBON_METRICS_PORT}:${CARBON_METRICS_PORT}"        # TCP порт для отправки метрик
+      - "${CARBON_ADDITIONAL_PORT}:${CARBON_ADDITIONAL_PORT}"  # Дополнительный порт Carbon
+      - "${CARBON_LISTENER_PORT}:${CARBON_LISTENER_PORT}"      # Carbon порт (листенер)
+      - "${GRAPHITE_WEB_PORT}:80"                              # Web интерфейс Graphite
+    env_file:
+      - ../.env
+    volumes:
+      - graphite_data:/opt/graphite/storage
+    environment:
+      - GRAPHITE_STORAGE_DIR=/opt/graphite/storage
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "${GRAFANA_PORT}:${GRAFANA_PORT}"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+    env_file:
+      - ../.env
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - graphite
+
+volumes:
+  db_data:
+  graphite_data:
+  grafana_data:
+
+networks:
+  qr_net:
+    driver: bridge
+
