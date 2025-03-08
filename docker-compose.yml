@@ -7,13 +7,17 @@ services:
     ports:
       - "80:80"
       - "8443:443"
+    restart: always
+    depends_on:
+      - gateway-service
+      - graphite
+    env_file:
+      - ../.env
     volumes:
       - ../front/templates:/usr/share/nginx/html
       - ../front/static:/usr/share/nginx/html/static
       - ../front/nginx.conf:/etc/nginx/conf.d/default.conf
       - ../certs:/etc/nginx/ssl
-    env_file:
-      - ../.env
     networks:
       - qr_net
 
@@ -39,27 +43,61 @@ services:
       - "${QR_SERVICE_PORT}:${QR_SERVICE_PORT}"
     env_file:
       - ../.env
+    restart: always
     depends_on:
       - qr-service-db
       - graphite
+    networks:
+      - qr_net
+
+  auth-service:
+    container_name: auth-service
+    build:
+      context: ../auth-service
+    ports:
+      - "${AUTH_SERVICE_PORT}:${AUTH_SERVICE_PORT}"
+    env_file:
+      - ../.env
     restart: always
+    depends_on:
+      - auth-service-db
+      - graphite
     networks:
       - qr_net
 
   qr-service-db:
     image: postgres:latest
     container_name: qr-service-db
-    restart: always
     environment:
       POSTGRES_USER: ${QR_SERVICE_POSTGRES_USER}
       POSTGRES_PASSWORD: ${QR_SERVICE_POSTGRES_PASSWORD}
       POSTGRES_DB: ${QR_SERVICE_POSTGRES_DB}
+      PGPORT: ${QR_SERVICE_POSTGRES_PORT}
     env_file:
       - ../.env
-    volumes:
-      - db_data:/var/lib/postgresql/data
+    restart: always
     ports:
-      - "5435:${QR_SERVICE_POSTGRES_PORT}"
+      - "${QR_SERVICE_POSTGRES_PORT}:${QR_SERVICE_POSTGRES_PORT}"
+    volumes:
+      - qr_db_data:/var/lib/postgresql/data
+    networks:
+      - qr_net
+
+  auth-service-db:
+    image: postgres:latest
+    container_name: auth-service-db
+    environment:
+      POSTGRES_USER: ${AUTH_SERVICE_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${AUTH_SERVICE_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${AUTH_SERVICE_POSTGRES_DB}
+      PGPORT: ${AUTH_SERVICE_POSTGRES_PORT}
+    env_file:
+      - ../.env
+    restart: always
+    ports:
+      - "${AUTH_SERVICE_POSTGRES_PORT}:${AUTH_SERVICE_POSTGRES_PORT}"
+    volumes:
+      - auth_db_data:/var/lib/postgresql/data
     networks:
       - qr_net
 
@@ -97,7 +135,8 @@ services:
       - qr_net
 
 volumes:
-  db_data:
+  qr_db_data:
+  auth_db_data:
   graphite_data:
   grafana_data:
 
